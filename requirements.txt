@@ -1,0 +1,15 @@
+affine
+geopandas
+netcdf4
+numpy
+pandas
+pyarrow
+rasterio
+requests
+scipy
+shapely
+tqdm
+xarray
+
+# Testing (tests/ -- see tests/README.md)
+pytest

@@ -1,0 +1,7 @@
+input
+papers/
+cache/
+__pycache__/
+*.pyc
+products/
+SvalbardSubmarineRetreat.qgz
