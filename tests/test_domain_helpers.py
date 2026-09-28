@@ -133,3 +133,16 @@ def test_scheelebreen_is_forced_tidewater():
     )
     flagged = outlines.add_tidewater_flag(outlines.apply_field_overrides(frame))
     assert flagged["is_tidewater"].all()
+
+
+def test_only_two_outline_corrections_start_after_2012():
+    """The static outline set drops upstream's per-interval active-year filter.
+
+    Every correction but these two has been active since 2012; the two 2019
+    ones (Scheelebreen, Vallakrabreen) were checked and are inert for the
+    outputs (see `outlines.apply_outline_corrections`). If this set changes,
+    the dropped filter has to be re-checked against the outputs.
+    """
+    corrections = outlines.load_outline_corrections()
+    late = sorted(corrections.loc[corrections["first_active_year"] > 2012, "fix_id"])
+    assert late == [739210, 796355]

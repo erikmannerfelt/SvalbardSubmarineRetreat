@@ -54,7 +54,7 @@ def test_clip_of_a_fully_ice_covered_outline_is_the_outline():
 
 
 def test_retreat_and_advance_are_complementary_differences():
-    """The invariant `make_direct_changes` relies on, stated explicitly.
+    """The invariant `make_rgi_attributed_changes` relies on, stated explicitly.
 
     Retreat and advance are the two one-sided differences of the same pair of
     extents, so they cannot overlap, and each is confined to the outline both
@@ -100,8 +100,8 @@ def test_change_polygons_are_a_named_output():
     assert extraction.CHANGE_POLYGONS_PATH.name == "change_polygons_by_rgi.arrow"
 
 
-def test_residual_reach_matches_the_superseded_buffer():
-    """The ring width is the old pipeline's buffer, kept for continuity."""
+def test_residual_reach_is_150_m():
+    """The ring width that captures 99.99% of attributed change area."""
     assert extraction.RESIDUAL_REACH_M == 150.0
 
 

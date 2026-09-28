@@ -1,14 +1,8 @@
-"""Dissolved NPI annual coastlines, and the year pairs the project compares.
+"""Dissolved NPI annual coastlines, and the year pairs the change polygons use.
 
 `load_coastline` is the one shared input: `extraction.py` clips it to glacier
 outlines to build per-year ice extents, and `bed.marine_domain` uses it to
 decide which cells were ever open water.
-
-This module previously also differenced the whole Svalbard coastline into
-change polygons, which were then filtered and attributed in `attribution.py`.
-Both steps were removed on 2026-09-03 when `extraction.py` began clipping to
-each glacier before differencing, which makes the noise filter and the
-attribution step unnecessary.
 """
 
 from __future__ import annotations
@@ -22,7 +16,7 @@ from src import config, sources
 
 ChangeType: TypeAlias = Literal["retreat", "advance"]
 
-#: (year_from, year_to) pairs milestone B compares. "Retreat" is land in
+#: (year_from, year_to) pairs the change polygons compare. "Retreat" is land in
 #: year_from that's gone by year_to; "advance" is the reverse.
 COASTLINE_PAIRS: Final[tuple[tuple[int, int], ...]] = (
     (2012, 2018),

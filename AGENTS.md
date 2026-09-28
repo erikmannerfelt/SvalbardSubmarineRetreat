@@ -10,11 +10,10 @@ pipeline and outputs.
 ## Project scope
 
 The outputs (see README): the per-glacier retreat/advance change polygons, a
-merged gap-free 100 m bed raster per bed/thickness product, and the per-pixel
-ensemble spread over the five estimates. The submarine volume change of a
-change polygon is its area times the mean bed depth below sea level over it.
-The bed rasters are built by `src/bed.py`; the comparison and rate-table code
-that used to consume them has been removed.
+merged gap-free 100 m bed raster per bed/thickness product, the per-pixel
+ensemble spread over the five estimates, and the per-polygon submarine volume
+changes. The bed rasters are built by `src/bed.py`; `src/volume.py` samples
+them into the volume product.
 
 ## Bed construction rules, in the order they apply
 
@@ -74,8 +73,8 @@ retreat/advance output.
 first, then differences consecutive extents. Because the outlines are
 disjoint, a change polygon belongs to exactly one glacier and no area can be
 counted twice -- this replaced an earlier whole-Svalbard difference plus a
-buffered-outline attribution that double-counted confluent fronts (the
-milestone C bug, seen at the NGS). A 150 m ring outside the outlines recovers
+buffered-outline attribution that double-counted confluent fronts (first seen
+at the NGS). A 150 m ring outside the outlines recovers
 change the outlines miss; each connected piece is assigned whole to its
 nearest glacier (validated: whole-piece assignment misplaces 0.0087% of
 attributed change area).
@@ -85,6 +84,30 @@ are valid but set the bounding box `bed._fill_aoi_geometry` derives the bed
 crop from. `extraction._clean_geometry` snaps to a 1 cm grid and drops
 sub-millimetre parts; one measured spike ran 1099 m out and was extending the
 bed domain ~1 km.
+
+## Submarine volume change is a coverage-weighted depth integral
+
+`volume.py` samples each bed raster over each change polygon. The depth at a
+cell is `max(0, -bed)`: a bed at or above sea level contributes zero submarine
+depth, so the volume is a true below-sea-level volume rather than a signed
+elevation integral. Each cell's depth is weighted by the fraction of that 100 m
+cell the polygon covers (`volume._cell_overlaps`), and the volume change is
+the weighted integral; the reported mean depth is that integral over the
+covered area.
+
+The weighting is deliberate. The change polygons run along calving fronts, so
+many are sub-pixel or thin ribbons: a cell-centre test silently drops 134 of
+806 polygons (0.033% of the change area), while an unweighted touched-cell
+count would include cells a polygon barely clips and inflate the result. It
+also means a partly covered polygon gets a volume over the area that was
+actually sampled, not one extrapolated from the full polygon area.
+
+Cells where a model's raster has no value (an unconstrained interpolation
+component) carry no weight and are counted in `<model>_valid_cells` (against
+`n_cells`, the cells the polygon overlaps). The per-model interpolated fraction
+is carried so a downstream estimate can report how much of a depth rests on
+measured data. `svift_v10` is sampled as a sixth product but excluded from the
+ensemble, since it is a second version of the same SVIFT family.
 
 ## Naming
 
@@ -99,12 +122,16 @@ Derived artifacts are `.arrow`/GeoTIFF caches in `cache/`, each with the
 cached upstream, `"all"` propagate to dependencies). Source downloads take a
 separate `refresh_download` flag. Caches are written atomically via a
 same-directory temporary path and re-read after writing. `products/bed/*.tif`
-are copies of `cache/bed_<model>.tif` and must be republished with
-`bed.export_all_products()` after a rebuild; stale GDAL `.aux.xml` sidecars
-should be deleted.
+are copies of `cache/bed_<model>.tif` and `products/change_polygons_by_rgi.arrow`
+is a copy of `cache/change_polygons_by_rgi.arrow`, each republished with
+`bed.export_all_products()` and `extraction.export_change_polygons_product()`
+after a rebuild; stale GDAL `.aux.xml` sidecars should be deleted. The two
+directly-computed products, `products/bed/bed_spread_100m.tif` and
+`products/submarine_volume_change.arrow`, are written atomically straight to
+`products/` and re-read after writing.
 
 ## Outline debt
 
 Some RGI7 outlines predate a surge and do not cover their own glacier's
-change. `shapes/OUTLINE_PROBLEMS.md` ranks the 46 affected glaciers; the
-outlines should not be treated as final until that list is worked through.
+change; the outlines should not be treated as final until that debt is worked
+through. The affected glaciers are not yet enumerated in-repo.

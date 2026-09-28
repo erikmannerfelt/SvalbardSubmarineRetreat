@@ -1,17 +1,19 @@
 # Submarine retreat for tidewater glaciers in Svalbard
 
-Two deliverables for estimating submarine volume change of Svalbard
+Three deliverables for estimating submarine volume change of Svalbard
 tidewater glaciers (RGI7 tidewater plus Scheelebreen):
 
 1. **Change polygons** -- each tidewater glacier's retreat and advance for
    2012-2018, 2018-2023 and 2012-2023, attributed to its RGI7 ID
-   (`cache/change_polygons_by_rgi.arrow`).
+   (`products/change_polygons_by_rgi.arrow`; `cache/` holds the working copy).
 2. **Bed surfaces** -- a gap-free 100 m bed-elevation raster for each of six
-   subglacial bed/ice-thickness products (`products/bed/<model>_bed_100m.tif`).
-
-Multiplying polygon area by the mean bed depth below sea level over that
-polygon gives the submarine volume change; that sampling step is downstream
-of this repo's outputs.
+   subglacial bed/ice-thickness products (`products/bed/<model>_bed_100m.tif`),
+   plus the per-pixel ensemble spread (`products/bed/bed_spread_100m.tif`).
+3. **Submarine volume changes** -- the change polygons with the mean bed depth
+   below sea level sampled from every bed product and the resulting volume
+   change (`products/submarine_volume_change.arrow`). Self-contained: the
+   sampled depths and volumes are in the table, so no reader needs the bed
+   rasters to get a volume.
 
 `AGENTS.md` records the durable domain rules behind the non-obvious choices,
 in particular the Nathorstbreen Glacier System (NGS) surge fixes.
@@ -34,28 +36,55 @@ in particular the Nathorstbreen Glacier System (NGS) surge fixes.
    Marine and land/glacier gaps are filled by separate solves so a land cell
    can never bleed into a fjord. The six models are `svift_v11`, `svift_v10`,
    `maffezzoli`, `millan`, `frank` and `vanpelt` (`bed.BED_MODELS`).
+4. **Submarine volumes** (`src/volume.py`) -- each bed raster is integrated
+   over each change polygon. The depth `max(0, -bed)` (a positive bed
+   contributes zero depth) is weighted by the fraction of each 100 m cell the
+   polygon covers, which matters because the fronts are full of sub-pixel and
+   thin-ribbon polygons that a cell-centre test would miss. The volume change
+   is that weighted integral; the reported mean depth is the integral over the
+   covered area. Per-model values for all six beds and an ensemble summary over
+   `bed.ENSEMBLE_MODELS` are written together, along with each model's
+   interpolation share.
 
 ## Running
 
 ```python
-from src import bed, extraction
+from src import bed, extraction, volume
 
-extraction.make_rgi_attributed_changes()   # writes the change-polygon output
-bed.export_all_products()                  # builds + writes every bed raster
+extraction.make_rgi_attributed_changes()  # builds the change polygons
+extraction.export_change_polygons_product()  # publishes them to products/
+bed.export_all_products()  # builds + publishes every bed raster
+volume.make_submarine_volume_product()  # samples depths + publishes volumes
 ```
 
 Derived caches take a `force_redo` flag: `False` reuses a cache, `"self"`
 recomputes the artifact from cached upstream outputs, `"all"` also recomputes
 the dependencies. Source downloads use a separate `refresh_download` flag.
-`products/bed/*.tif` are copies of `cache/bed_<model>.tif`; re-run
-`bed.export_all_products()` after any rebuild, and delete any stale GDAL
-`.aux.xml` sidecars a viewer may have written.
+`products/bed/*.tif` are copies of `cache/bed_<model>.tif`, and
+`products/change_polygons_by_rgi.arrow` is a copy of
+`cache/change_polygons_by_rgi.arrow`; re-run `bed.export_all_products()` and
+`extraction.export_change_polygons_product()` after a rebuild, and delete any
+stale GDAL `.aux.xml` sidecars a viewer may have written.
 
 ## Products
 
-`cache/change_polygons_by_rgi.arrow` -- one row per (glacier, interval, change
-type), columns `rgi_id`, `glac_name`, `year_from`, `year_to`, `change_type`,
-`area_m2`, `geometry`, EPSG:32633.
+`products/change_polygons_by_rgi.arrow` -- one row per (glacier, interval,
+change type), columns `rgi_id`, `glac_name`, `year_from`, `year_to`,
+`change_type`, `area_m2`, `geometry`, EPSG:32633.
+
+`products/submarine_volume_change.arrow` -- one row per (glacier, interval,
+change type), EPSG:32633, with the polygon `geometry` and `area_m2`, plus for
+each of the six `bed.BED_MODELS`: `<model>_mean_depth_m` (the depth
+integral over the covered area), `<model>_volume_change_m3` (that integral,
+in m^3), `<model>_interpolated_share` (the area-weighted fraction of the depth
+coming from the harmonic fill rather than a measurement) and
+`<model>_valid_cells`. Ensemble columns `ensemble_mean_volume_change_m3`,
+`ensemble_median_volume_change_m3`, `ensemble_std_volume_change_m3` and
+`ensemble_model_count` summarize the five `bed.ENSEMBLE_MODELS`. `n_cells` is
+how many 100 m cells the polygon overlaps and `<model>_valid_cells` how many
+of those have a value for that model; a polygon with none gets NaN in that
+model's depth/volume columns, but a partly covered polygon still gets a volume
+over its covered area, never one extrapolated from the full polygon area.
 
 `products/bed/<model>_bed_100m.tif` -- three bands, EPSG:32633, 100 m, NaN
 nodata: (1) bed elevation in m relative to sea level, negative below; (2)
@@ -81,12 +110,9 @@ model also still sees the post-surge fjord as ice-free land, so
 
 **Interpolation share.** Much of the bed value at the calving fronts comes
 from this repo's harmonic fill rather than any source model, most for the
-SVIFT pair. The `source_code` band lets any downstream estimate report how
-much of its depth rests on measured data.
-
-**Outline debt.** Some RGI7 outlines predate a surge and do not cover their
-own glacier's change; `shapes/OUTLINE_PROBLEMS.md` ranks the affected
-glaciers and should be worked through before the outlines are final.
+SVIFT pair. The `source_code` band, surfaced as `<model>_interpolated_share`
+in the volume product, lets any downstream estimate report how much of its
+depth rests on measured data.
 
 ## Data sources
 

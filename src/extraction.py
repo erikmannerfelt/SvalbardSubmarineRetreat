@@ -34,13 +34,15 @@ polygons, it was extending the bed computation domain ~1 km southward.
 
 **Known outline problems.** A few glaciers surged past their RGI7 outline and
 lack a correction polygon, so most of their change arrives through the residual
-rather than being attributed directly. They are listed in
-`shapes/OUTLINE_PROBLEMS.md`, which should be worked through before these
-outlines are treated as final.
+rather than being attributed directly. The affected glaciers are not yet
+enumerated; this should be worked through before the outlines are treated as
+final.
 """
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
 from typing import Final
 
 import geopandas as gpd
@@ -50,8 +52,8 @@ import shapely
 from src import config, outlines, retreat
 
 #: How far outside the RGI7 outlines to look for change the outlines do not
-#: cover. Matches the buffer width the superseded pipeline used, and captures
-#: 99.99% of attributed change area (measured 2026-09-03).
+#: cover. At this reach the ring captures 99.99% of attributed change area
+#: (measured 2026-09-03), so widening it further buys nothing.
 RESIDUAL_REACH_M: Final = 150.0
 
 #: Pieces below this are numerical dust from the geometry operations rather
@@ -217,6 +219,9 @@ def _residual_changes(
         )
 
     pieces = gpd.GeoDataFrame(records, geometry="geometry", crs=config.CRS_EPSG)
+    # A ring piece is at most RESIDUAL_REACH_M from an outline, but
+    # sjoin_nearest measures boundary-to-boundary, so a generous 1.5x margin
+    # absorbs rounding at the ring edge without admitting non-ring pieces.
     joined = pieces.sjoin_nearest(
         tidewater[["rgi_id", "glac_name", "geometry"]],
         how="inner",
@@ -280,21 +285,36 @@ def make_rgi_attributed_changes(
                         }
                     )
 
-    direct = gpd.GeoDataFrame(records, geometry="geometry", crs=config.CRS_EPSG)
+    if records:
+        direct = gpd.GeoDataFrame(records, geometry="geometry", crs=config.CRS_EPSG)
+    else:
+        direct = gpd.GeoDataFrame(
+            columns=["rgi_id", "glac_name", "year_from", "year_to", "change_type"],
+            geometry=gpd.GeoSeries([], crs=config.CRS_EPSG),
+        )
     combined = pd.concat(
         [direct, _residual_changes(tidewater, upstream)], ignore_index=True
     )
-    out = (
-        gpd.GeoDataFrame(combined, geometry="geometry", crs=config.CRS_EPSG)
-        .dissolve(
-            by=["rgi_id", "year_from", "year_to", "change_type"],
-            aggfunc={"glac_name": "first"},
+    if combined.empty:
+        # A GeoDataFrame with no rows cannot take its geometry column from a
+        # named field, so build the empty product explicitly.
+        empty = gpd.GeoDataFrame(
+            columns=[c for c in OUTPUT_COLUMNS if c != "geometry"],
+            geometry=gpd.GeoSeries([], crs=config.CRS_EPSG),
         )
-        .reset_index()
-    )
-    out["geometry"] = [_clean_geometry(g) for g in out.geometry.values]
-    out["area_m2"] = out.geometry.area
-    out = out.loc[out["area_m2"] > 0, list(OUTPUT_COLUMNS)].reset_index(drop=True)
+        out = empty.loc[:, list(OUTPUT_COLUMNS)]
+    else:
+        out = (
+            gpd.GeoDataFrame(combined, geometry="geometry", crs=config.CRS_EPSG)
+            .dissolve(
+                by=["rgi_id", "year_from", "year_to", "change_type"],
+                aggfunc={"glac_name": "first"},
+            )
+            .reset_index()
+        )
+        out["geometry"] = [_clean_geometry(g) for g in out.geometry.values]
+        out["area_m2"] = out.geometry.area
+        out = out.loc[out["area_m2"] > 0, list(OUTPUT_COLUMNS)].reset_index(drop=True)
 
     tmp_path = cache_path.with_name(f"{cache_path.stem}.tmp.arrow")
     try:
@@ -303,3 +323,27 @@ def make_rgi_attributed_changes(
     finally:
         tmp_path.unlink(missing_ok=True)
     return gpd.read_feather(cache_path)
+
+
+def export_change_polygons_product(
+    force_redo: config.ForceRedo = False,
+) -> Path:
+    """Publish the change polygons to `products/change_polygons_by_rgi.arrow`.
+
+    The product is a copy of the cache, so it goes stale silently whenever the
+    polygons are rebuilt and nothing republishes them. Run this after a
+    rebuild.
+    """
+    make_rgi_attributed_changes(force_redo)
+
+    out_path = config.PRODUCTS_DIR / "change_polygons_by_rgi.arrow"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = out_path.with_name(f"{out_path.stem}.tmp.arrow")
+    try:
+        shutil.copyfile(CHANGE_POLYGONS_PATH, tmp_path)
+        tmp_path.replace(out_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    return out_path

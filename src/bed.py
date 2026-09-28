@@ -1,4 +1,4 @@
-"""Phase 2/3: merge each bed/thickness source into a gap-free Svalbard bed surface.
+"""Merge each bed/thickness source into a gap-free Svalbard bed surface.
 
 Produces, per source model, a combined bed-elevation raster (m relative to
 sea level, negative below) on a shared 100 m EPSG:32633 grid
@@ -38,15 +38,19 @@ solves Laplace's equation with every measured cell held fixed as a Dirichlet
 boundary condition; a harmonic solution obeys a maximum principle, so an
 interpolated cell can never fall outside the range of the measured values
 enclosing it (see `harmonic_fill`). That structurally rules out the failure
-mode of the scattered-point RBF it replaced, which could reach 10+ km across
-a data gap and import mountain elevations into a fjord.
+mode of an earlier scattered-point RBF approach, which could reach 10+ km
+across a data gap and import mountain elevations into a fjord.
 
-Phase 3 repeats this for four more subglacial bed/thickness products --
-Maffezzoli et al. (IceBoost v2.0), Millan et al. (thickness only, combined
-with the NPI DEM), Frank et al. (subglacial topography), and van Pelt &
-Frank (bed, resampled to its true coarser model grid) -- each via its own
-`load_<source>_crop` loader and `make_<source>_bed` wrapper around the
-shared `_make_merged_bed` core.
+All six `BED_MODELS` go through the same treatment: `svift_v11` and
+`svift_v10` (SVIFT's two published versions), Maffezzoli et al. (IceBoost
+v2.0), Millan et al. (thickness only, combined with the NPI DEM), Frank et al.
+(subglacial topography), and van Pelt & Frank (bed, resampled to its true
+coarser model grid). Each has its own `load_<source>_crop` loader and
+`make_<source>_bed` wrapper around the shared `_make_merged_bed` core.
+`export_all_products` republishes every `products/bed/<model>_bed_100m.tif`,
+and `export_bed_spread_product` writes the per-pixel spread over
+`ENSEMBLE_MODELS` (`svift_v10` excluded, since it is a second version of the
+same SVIFT product).
 """
 
 from __future__ import annotations
@@ -85,8 +89,9 @@ SourceCropLoader: TypeAlias = Callable[
 #: ENC soundings, lidar, optical, combination-of-direct.
 TID_DIRECT_CODES: Final = frozenset({10, 11, 12, 13, 14, 15, 16, 17})
 
-#: Buffer around the milestone C attributed change polygons whose bounding
-#: box (plus `CROP_PAD_M`) defines the raster extent we work on. It spans
+#: Buffer around the attributed change polygons
+#: (`extraction.CHANGE_POLYGONS_PATH`) whose bounding box (plus `CROP_PAD_M`)
+#: defines the raster extent we work on. It spans
 #: essentially all of Svalbard's tidewater coast; the buffer only has to be
 #: wide enough that no attributed polygon touches the crop edge.
 FILL_AOI_BUFFER_M: Final = 300.0
@@ -345,7 +350,7 @@ def load_millan_crop(
     dropped before differencing, per svalbard_radar's `sample_models`
     precedent for this same product. That guard is **inert on the current
     Svalbard tiles** -- measured maxima are 999.4 m (RGI-7.1) and 405.2 m
-    (RGI-7.2), so nothing is dropped (2026-09-02, review finding F9). Kept
+    (RGI-7.2), so nothing is dropped (measured 2026-09-02). Kept
     for provenance with the upstream precedent and as protection if the
     product is revised, not because it is doing work today.
     """
@@ -386,8 +391,8 @@ def load_frank_crop(
     `src_nodata=0.0` below. Per-glacier RGI60 IDs in the filenames are
     irrelevant here since attribution is by geometry, not by matching IDs.
 
-    **Tiles are not all EPSG:32633** (corrected 2026-09-02, review finding
-    F3): of 617 tiles, 481 are 32633, 64 are 32634, 55 are 32632, 14 are
+    **Tiles are not all EPSG:32633** (corrected 2026-09-02): of 617 tiles,
+    481 are 32633, 64 are 32634, 55 are 32632, 14 are
     32629 (Jan Mayen), 2 are 32635 and 1 is 32636; two are 200 m rather than
     100 m. The per-tile `reproject` handles that correctly since it reads
     each tile's own CRS. The bounds pre-filter, however, compares each
@@ -603,10 +608,9 @@ def glacier_domain(
     Splits the non-marine part of the grid into ice-covered (bed unknown
     without a source model or interpolation) and ice-free land (bed ==
     surface, safe to fill from the NPI DEM -- see module docstring and
-    `_make_merged_bed`). Superseded `sea_level_shoreline`'s synthetic "0 m
-    at the coast" anchor (2026-09-02): every ice-free-land cell is now
-    filled with its real DEM elevation, which anchors the adjacent marine
-    harmonic fill more accurately than an assumed flat waterline did.
+    `_make_merged_bed`). Every ice-free-land cell gets its real DEM elevation,
+    which anchors the adjacent marine harmonic fill more accurately than the
+    synthetic flat waterline this replaced.
     """
     rgi7 = outlines.make_corrected_outlines(force_redo=force_redo)
     return rasterio.features.geometry_mask(
@@ -643,8 +647,8 @@ def harmonic_fill(
     Property 2 is the one that matters here. Tension exists in that family
     precisely to suppress the overshoot of the minimum-curvature (T = 0)
     limit, and taking tension to its maximum removes that failure mode
-    entirely rather than damping it. It is the failure that dominated this
-    module's original scattered-point RBF, which reached 10+ km across a data
+    entirely rather than damping it. It is the failure that dominated an
+    earlier scattered-point RBF approach, which reached 10+ km across a data
     gap and imported mountain elevations into a fjord.
 
     We also apply it once, at the native 100 m grid, where IBCAO solves at
@@ -807,6 +811,41 @@ def _write_bed_cache(
 def bed_cache_path(model: str) -> Path:
     """Cache path for one bed model's 3-band GeoTIFF, `cache/bed_<model>.tif`."""
     return config.CACHE_DIR / f"bed_{model}.tif"
+
+
+def read_cached_bed(
+    model: str, force_redo: config.ForceRedo = False
+) -> tuple[np.ndarray, np.ndarray, rasterio.Affine]:
+    """Read one bed model's cached raster as `(elevation, source_code, transform)`.
+
+    Elevation and `source_code` are bands 1 and 3 (see `SOURCE_CODE_LABELS`);
+    band 2 (distance to the nearest measured cell) is not returned. The cache
+    is built first if it is missing or `force_redo` asks for a recompute, so
+    callers get a valid raster without knowing about `BED_MODELS` builders.
+
+    Parameters
+    ----------
+    model
+        A key of `BED_MODELS`.
+    force_redo
+        ``False`` reuses the cache; ``"self"``/``"all"`` recompute through the
+        model's builder (``"all"`` also propagates to its dependencies).
+
+    Returns
+    -------
+    (ndarray, ndarray, Affine)
+        Elevation in m (negative below sea level), provenance code, and the
+        shared EPSG:32633 transform. Both arrays are float32 with NaN nodata.
+    """
+    if model not in BED_MODELS:
+        raise KeyError(f"model must be one of {sorted(BED_MODELS)}, got {model!r}")
+    BED_MODELS[model](force_redo)
+
+    with rasterio.open(bed_cache_path(model)) as src:
+        elevation = src.read(1, masked=True).filled(np.nan).astype(np.float32)
+        source_code = src.read(3, masked=True).filled(np.nan).astype(np.float32)
+        transform = src.transform
+    return elevation, source_code, transform
 
 
 def _make_merged_bed(

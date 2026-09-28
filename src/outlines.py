@@ -1,10 +1,11 @@
 """RGI7 outline loading and correction for Svalbard tidewater glaciers.
 
 Ports the outline-correction logic from erikmannerfelt/ad_svalbard_post
-(``src/outlines.py::make_outlines``) without its per-interval coastline
-clipping, which serves a different purpose there (constraining outlines to
-multi-year coastline unions) than the static corrected-outline set we need
-for the static corrected-outline set used here. See AGENTS.md.
+(``src/outlines.py::make_outlines``) with two deliberate simplifications: this
+project needs one static corrected-outline set rather than upstream's
+per-interval outlines, so both the per-interval coastline clipping and the
+``first_active_year``/``last_active_year`` correction filter are dropped. See
+:func:`apply_outline_corrections` for what the dropped filter costs.
 """
 
 from __future__ import annotations
@@ -22,7 +23,9 @@ SVALBARD_O2REGION: Final = "07-01"
 #: the geometry corrections. Ported from ad_svalbard_post's field_overrides
 #: dict, restricted to what's relevant without the surge-database fields
 #: (S_Onset/S_Term/S_Direct/... don't exist in the plain RGI7.0 release we
-#: use).
+#: use). Also dropped: upstream's non-surge `glac_name` cleanups (e.g.
+#: "Lilliehøøkbreen", the unnamed "Austfonna, -" basins), so the output
+#: `glac_name` is the plain RGI7.0 value for those glaciers.
 FIELD_OVERRIDES: Final[dict[str, dict[str, object]]] = {
     # Advanced into water in early 2022; RGI7's term_type=9 (not assigned)
     # and zmin_m=5.5 m already puts it under the tidewater filter's zmin_m
@@ -92,9 +95,13 @@ def apply_outline_corrections(
     correction geometry into its target `rgi_id`'s outline, and subtract it
     from any other outline it geometrically overlaps. Ported from
     ad_svalbard_post's `make_outlines`, minus the per-interval
-    `first_active_year`/`last_active_year` filtering (every correction's
-    window covers our full 2012-2023 study period, so it isn't load-bearing
-    for this static, non-interval output).
+    `first_active_year`/`last_active_year` filtering. Upstream applies a
+    correction only to the intervals its window overlaps; a single static set
+    cannot. Two of the 94 corrections start in 2019 rather than 2012, but both
+    were checked and are inert for the outputs: Scheelebreen's added area is
+    land in every study year, so it yields no change polygon, and
+    Vallåkrabreen's target is not tidewater and overlaps no other outline. The
+    other 92 cover the full period.
 
     Parameters
     ----------

@@ -181,13 +181,7 @@ def test_adversarial_gradient_does_not_overshoot_above_zero():
 
 
 def test_cells_outside_the_domain_are_preserved():
-    """The sparse solve writes only in-domain unknowns, so this now holds.
-
-    Under the previous multigrid implementation it did not: the initial
-    guess overwrote every non-`known` cell in or out of domain (review
-    finding F18). The rewrite fixes that, and the docstring's promise is
-    now true.
-    """
+    """The sparse solve touches only in-domain unknowns, as the docstring says."""
     shape = (64, 64)
     domain = np.zeros(shape, dtype=bool)
     domain[10:50, 10:50] = True

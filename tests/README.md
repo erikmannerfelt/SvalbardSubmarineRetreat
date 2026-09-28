@@ -20,5 +20,10 @@ seconds and need no downloads.
   hygiene that removes spikes and sub-millimetre dust.
 - `test_domain_helpers.py` — the small pure helpers in `bed.py` and
   `outlines.py`: cache paths, provenance codes, the TID whitelist, the
-  harmonic fill on a constant field, and the tidewater flag including the
-  Scheelebreen override.
+  harmonic fill on a constant field, the tidewater flag including the
+  Scheelebreen override, and the known outline-correction active-year
+  exceptions.
+- `test_volume.py` — the per-polygon submarine depth sampling: the
+  `max(0, -bed)` depth convention, the area-weighted volume integral, recovery
+  of a thin sliver that misses every cell centre, exclusion and counting of
+  cells without a value, and the interpolation share.
