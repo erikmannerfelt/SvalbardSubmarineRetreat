@@ -20,7 +20,7 @@ This is the product the bed and change-polygon caches were built for. It is
 self-contained: the sampled mean depths, volumes, interpolation shares and the
 ensemble summary all live in one table, so no downstream reader needs the bed
 rasters to get a volume. Every model is sampled, but only `bed.ENSEMBLE_MODELS`
-enter the ensemble (`svift_v10` is a second version of the same SVIFT product).
+enter the ensemble (`svift_v10` and `millan` are excluded; see there).
 
 Cells where a model's raster has no value -- an unconstrained interpolation
 component -- carry no overlap weight and are counted in `<model>_valid_cells`,

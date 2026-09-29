@@ -49,8 +49,7 @@ coarser model grid). Each has its own `load_<source>_crop` loader and
 `make_<source>_bed` wrapper around the shared `_make_merged_bed` core.
 `export_all_products` republishes every `products/bed/<model>_bed_100m.tif`,
 and `export_bed_spread_product` writes the per-pixel spread over
-`ENSEMBLE_MODELS` (`svift_v10` excluded, since it is a second version of the
-same SVIFT product).
+`ENSEMBLE_MODELS` (`svift_v10` and `millan` excluded; see there).
 """
 
 from __future__ import annotations
@@ -1100,13 +1099,22 @@ BED_MODELS: Final[dict[str, BedModelBuilder]] = {
     "vanpelt": make_vanpelt_bed,
 }
 
-#: The five estimates the project set out to produce. `svift_v10` is
-#: excluded: it is a second version of the same SVIFT product, so including
-#: it would double-count the SVIFT family in the ensemble spread.
+#: The bed estimates that enter the ensemble. Both excluded models are still
+#: built and sampled, so the exclusion stays reproducible:
+#:
+#: - `svift_v10` is superseded by SVIFT 1.1 and would double-count the SVIFT
+#:   family in the ensemble spread.
+#: - `millan` is nonphysical at the glacier margins, which is exactly where
+#:   the change polygons sample it. Against direct IBCAO soundings within 1 km
+#:   of the change polygons (cells that were ice when the models were made
+#:   and are open water now), its raw bed is 3.5-3.8x too deep (RMSE 122-209
+#:   m, median bias -83 to -98 m, on the 1783/788 cells shared with the other
+#:   inversions), where the others sit at 0.85-2.9x. Inside the change
+#:   polygons its own inversion averages 163 m deep against 59-98 m for the
+#:   rest, roughly doubling every submarine volume (measured 2026-09-29).
 ENSEMBLE_MODELS: Final[tuple[str, ...]] = (
     "svift_v11",
     "maffezzoli",
-    "millan",
     "frank",
     "vanpelt",
 )
@@ -1143,7 +1151,7 @@ def export_bed_spread_product(
     disagreement at full size rather than having it clipped away.
 
     Band 3 is what keeps band 1 honest: a standard deviation over two models
-    is not comparable to one over five, and the ensemble's coverage is not
+    is not comparable to one over four, and the ensemble's coverage is not
     uniform. Cells with fewer than two models are NaN in bands 1-2.
 
     **Read band 1 only where the models actually differ.** Most cells have a

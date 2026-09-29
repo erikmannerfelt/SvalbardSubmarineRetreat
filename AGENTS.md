@@ -11,7 +11,7 @@ pipeline and outputs.
 
 The outputs (see README): the per-glacier retreat/advance change polygons, a
 merged gap-free 100 m bed raster per bed/thickness product, the per-pixel
-ensemble spread over the five estimates, and the per-polygon submarine volume
+ensemble spread over the four ensemble estimates, and the per-polygon submarine volume
 changes. The bed rasters are built by `src/bed.py`; `src/volume.py` samples
 them into the volume product.
 
@@ -106,8 +106,25 @@ Cells where a model's raster has no value (an unconstrained interpolation
 component) carry no weight and are counted in `<model>_valid_cells` (against
 `n_cells`, the cells the polygon overlaps). The per-model interpolated fraction
 is carried so a downstream estimate can report how much of a depth rests on
-measured data. `svift_v10` is sampled as a sixth product but excluded from the
-ensemble, since it is a second version of the same SVIFT family.
+measured data. `svift_v10` and `millan` are sampled but excluded from the
+ensemble: `svift_v10` is superseded by SVIFT 1.1, and `millan` is
+nonphysical exactly at the glacier margins the polygons sample.
+
+## Why Millan is excluded
+
+Millan's bed is the NPI DEM minus its ice thickness, and that thickness does
+not taper at the fronts. The test that exposes this compares each model's
+*raw* bed against direct IBCAO soundings within 1 km of the change polygons,
+i.e. cells that were ice when the models were made and are open water now.
+On the 1783 cells shared by Maffezzoli, Millan and van Pelt, Millan is 3.8x
+too deep (RMSE 209 m, median -83 m) against 1.6x and 0.85x. On the 788 cells
+also covered by Frank it is 3.5x (RMSE 122 m), and Frank itself is 2.9x
+(RMSE 112 m), which is poor but was kept by choice. Inside the change polygons
+Millan's own inversion averages 163 m deep against 59-98 m for the others,
+roughly doubling every submarine volume. Whole-archipelago seam statistics
+(inversion-vs-bathymetry or inversion-vs-land steps) do *not* single Millan
+out, because SVIFT 1.1 and van Pelt show comparable steps there; only the
+margin-restricted test against soundings does. (Measured 2026-09-29.)
 
 ## Naming
 
@@ -135,3 +152,21 @@ directly-computed products, `products/bed/bed_spread_100m.tif` and
 Some RGI7 outlines predate a surge and do not cover their own glacier's
 change; the outlines should not be treated as final until that debt is worked
 through. The affected glaciers are not yet enumerated in-repo.
+
+## Coastline source and dates
+
+The coastlines come from the official NPI dataset (`sources.COASTLINE_URLS`),
+not from the later release G. Moholdt circulated (`Coast_annual.zip`, Feb 2026,
+with unspecified fixes) that `ad_svalbard_post` currently vendors for its
+above-water clipping. The official source keeps this repo reproducible from a
+public URL. Over 2012-2018 and 2018-2023 the two releases give retreat and
+advance areas within 2% of each other (largest: 2018-2023 retreat, 201.4 vs
+197.7 km^2), far below the bed-model spread. If NPI publishes the fixed
+release, switching is a URL change. (Measured 2026-09-29.)
+
+Neither release carries acquisition dates: the shapefiles only have `Name`,
+`Area` and `Perimeter`. Rates downstream therefore use whole coastline years
+(6, 5, 11 a). The per-front dates in Moholdt's own front polygons (late July to
+mid September; the "2012" coastline is partly 2011 imagery) give area-weighted
+intervals of 6.16/5.01/11.18 a, changing the four-model rates by -4.4%, -0.3%
+and -2.1%. Not worth a dependency on that dataset for dates alone.

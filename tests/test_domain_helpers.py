@@ -20,13 +20,13 @@ def test_every_model_has_a_distinct_cache_path():
     assert len(set(paths.values())) == len(bed.BED_MODELS)
 
 
-def test_spread_ensemble_is_the_five_estimates():
+def test_spread_ensemble_is_the_four_estimates():
     assert set(bed.ENSEMBLE_MODELS).issubset(bed.BED_MODELS)
     assert "svift_v10" not in bed.ENSEMBLE_MODELS
+    assert "millan" not in bed.ENSEMBLE_MODELS
     assert bed.ENSEMBLE_MODELS == (
         "svift_v11",
         "maffezzoli",
-        "millan",
         "frank",
         "vanpelt",
     )

@@ -49,12 +49,13 @@ in particular the Nathorstbreen Glacier System (NGS) surge fixes.
 ## Running
 
 ```python
-from src import bed, extraction, volume
+from src import bed, extraction, validation, volume
 
 extraction.make_rgi_attributed_changes()  # builds the change polygons
 extraction.export_change_polygons_product()  # publishes them to products/
 bed.export_all_products()  # builds + publishes every bed raster
 volume.make_submarine_volume_product()  # samples depths + publishes volumes
+validation.make_bed_model_validation()  # raw beds vs IBCAO soundings at the fronts
 ```
 
 Derived caches take a `force_redo` flag: `False` reuses a cache, `"self"`
@@ -80,7 +81,8 @@ in m^3), `<model>_interpolated_share` (the area-weighted fraction of the depth
 coming from the harmonic fill rather than a measurement) and
 `<model>_valid_cells`. Ensemble columns `ensemble_mean_volume_change_m3`,
 `ensemble_median_volume_change_m3`, `ensemble_std_volume_change_m3` and
-`ensemble_model_count` summarize the five `bed.ENSEMBLE_MODELS`. `n_cells` is
+`ensemble_model_count` summarize the four `bed.ENSEMBLE_MODELS`
+(`svift_v10` and `millan` are sampled but excluded; see `AGENTS.md`). `n_cells` is
 how many 100 m cells the polygon overlaps and `<model>_valid_cells` how many
 of those have a value for that model; a polygon with none gets NaN in that
 model's depth/volume columns, but a partly covered polygon still gets a volume
@@ -91,9 +93,15 @@ nodata: (1) bed elevation in m relative to sea level, negative below; (2)
 distance in m to the nearest directly measured cell; (3) a provenance code
 (`bed.SOURCE_CODE_LABELS`: inversion / bathymetry / DEM / interpolation).
 
+`products/bed_model_validation.csv` -- each model's raw bed against direct
+IBCAO soundings within 1 km of the change polygons (median/mean bias, RMSE,
+and the depth ratio by which it would scale a submarine volume), on each
+model's own cells and on shared-cell subsets. This is the evidence for
+excluding `millan` from the ensemble (`src/validation.py`, `AGENTS.md`).
+
 `products/bed/bed_spread_100m.tif` -- per-pixel ensemble spread over
-`bed.ENSEMBLE_MODELS` (the five estimates; `svift_v10` is excluded as a
-second SVIFT version): (1) standard deviation of bed elevation, (2) the mean,
+`bed.ENSEMBLE_MODELS` (four estimates; `svift_v10` and `millan` are
+excluded): (1) standard deviation of bed elevation, (2) the mean,
 (3) the number of models with a value. Most cells have zero spread because
 all models share the IBCAO bathymetry and NPI DEM, so read band 1 only where
 a subglacial inversion is doing the work.
