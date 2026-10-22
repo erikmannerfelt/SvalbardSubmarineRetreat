@@ -142,6 +142,6 @@ Every dataset has a `get_<source>()` in `src/sources.py` that downloads to
 ## Related repos
 
 - Union masks with glacier attribution from RGI7/coastlines/outline
-  corrections: (erikmannerfelt/ad_svalbard_post)[https://github.com/erikmannerfelt/ad_svalbard_post]
+  corrections: [erikmannerfelt/ad_svalbard_post](https://github.com/erikmannerfelt/ad_svalbard_post)
 - Downloaders for Millan, van Pelt and others:
-  (erikmannerfelt/svalbard_radar)[https://github.com/erikmannerfelt/svalbard_radar]
+  [erikmannerfelt/svalbard_radar](https://github.com/erikmannerfelt/svalbard_radar)
