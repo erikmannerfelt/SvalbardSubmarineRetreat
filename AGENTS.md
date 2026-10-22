@@ -157,9 +157,9 @@ through. The affected glaciers are not yet enumerated in-repo.
 
 The coastlines come from the official NPI dataset (`sources.COASTLINE_URLS`),
 not from the later release G. Moholdt circulated (`Coast_annual.zip`, Feb 2026,
-with unspecified fixes) that `ad_svalbard_post` currently vendors for its
-above-water clipping. The official source keeps this repo reproducible from a
-public URL. Over 2012-2018 and 2018-2023 the two releases give retreat and
+with unspecified fixes). The official source keeps this repo reproducible from a
+public URL, and `ad_svalbard_post` uses the same release for its above-water
+clipping (since 2026-10-22). Over 2012-2018 and 2018-2023 the two releases give retreat and
 advance areas within 2% of each other (largest: 2018-2023 retreat, 201.4 vs
 197.7 km^2), far below the bed-model spread. If NPI publishes the fixed
 release, switching is a URL change. (Measured 2026-09-29.)
