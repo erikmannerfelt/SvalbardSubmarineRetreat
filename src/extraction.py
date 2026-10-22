@@ -11,7 +11,7 @@ land in both years and cancels in the difference.
 
 This replaced a longer route (whole-Svalbard coastline differencing, a
 minimum-area noise filter, buffered outlines, and a nearest-owner partition of
-overlapping buffers) on 2026-09-03. See AGENTS.md.
+overlapping buffers) on 2026-09-03.
 
 **The residual.** Clipping to unbuffered outlines drops change occurring just
 outside them, 12.0 km^2 or 0.95% of attributed area: partly digitization slack

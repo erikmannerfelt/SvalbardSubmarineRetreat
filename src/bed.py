@@ -5,8 +5,8 @@ sea level, negative below) on a shared 100 m EPSG:32633 grid
 (`_target_grid`, defined by SVIFT's own raster), built from four provenance
 layers in fixed priority:
 
-1. **bathymetry** -- direct-measurement IBCAO v5.2 soundings (TID-filtered,
-   see AGENTS.md), at sea. Preferred over an inversion there because it is a
+1. **bathymetry** -- direct-measurement IBCAO v5.2 soundings (TID-filtered)
+   at sea. Preferred over an inversion there because it is a
    sounding of the present seafloor rather than a bed modelled under
    present-day or ~2010 ice.
 2. **inversion** -- the source's own modelled subglacial bed/thickness,
@@ -82,7 +82,7 @@ SourceCropLoader: TypeAlias = Callable[
     [rasterio.windows.Window, rasterio.Affine, tuple[int, int]], np.ndarray
 ]
 
-#: IBCAO/GEBCO-shared TID codes treated as direct/measured (see AGENTS.md
+#: IBCAO/GEBCO-shared TID codes treated as direct/measured (see 
 #: / README IBCAO notes -- IBCAO's own readme confirms it reuses GEBCO's
 #: TID coding scheme): singlebeam, multibeam, seismic, isolated soundings,
 #: ENC soundings, lidar, optical, combination-of-direct.
@@ -127,8 +127,7 @@ SOURCE_CODE_LABELS: Final[dict[float, str]] = {
 #: (PISM/IGM). Snapping to ~500 m with a 200 m offset before regridding
 #: avoids false precision from the 100 m delivery grid; ported from
 #: svalbard_radar's `get_vanpelt_lowres`, which applied the same
-#: empirically-tuned resample to this dataset's thickness counterpart (see
-#: AGENTS.md).
+#: empirically-tuned resample to this dataset's thickness counterpart.
 VANPELT_LOWRES_M: Final = 500.0
 VANPELT_LOWRES_SHIFT_M: Final = 200.0
 
@@ -385,8 +384,8 @@ def load_frank_crop(
     """Frank et al. subglacial topography, mosaicked from its per-glacier-complex tiles.
 
     Tiles carry an implicit nodata of 0 (the rectangular footprint padding
-    around each glacier's own model domain -- verified 2026-09-01, see
-    AGENTS.md), and no tile declares a nodata value, hence the explicit
+    around each glacier's own model domain, and no tile declares a
+    nodata value, hence the explicit
     `src_nodata=0.0` below. Per-glacier RGI60 IDs in the filenames are
     irrelevant here since attribution is by geometry, not by matching IDs.
 
@@ -453,8 +452,7 @@ def load_vanpelt_crop(
     `Bed_map.tif` (EPSG:25833) is masked to `Mask.tif != 0` (modelled
     cells) first -- verified 2026-09-01: 79% of the raster is unmodelled-
     area fill (bed exactly 0, mask 0), while bed == 0 is essentially never
-    real where the model actually ran (0.07% of modelled cells; see
-    AGENTS.md). The masked field is then nearest-resampled to
+    real where the model actually ran. The masked field is then nearest-resampled to
     `VANPELT_LOWRES_M` with `VANPELT_LOWRES_SHIFT_M` (see module-level
     comment) -- nearest is deliberate for *this* step, snapping onto the
     true, coarser model grid rather than interpolating between physically
@@ -524,7 +522,7 @@ def marine_domain(
     bathymetry over -- and, since 2026-09-02, so does a cell drowned by a
     pre-2012 glacier advance/surge that never retreated back into view
     during 2012-2023 (`MARINE_DOMAIN_YEARS` reaches back to 2008 for
-    exactly this; see AGENTS.md "NGS pre-2012 surge blind spot", found via
+    exactly this, found via
     the Nathorstbreen Glacier System). Restricting the fill this way is
     what keeps inland terrain from bleeding into the fjords: the solve
     region simply does not extend onto land.
@@ -954,7 +952,7 @@ def _make_merged_bed(
     #
     # Nathorstbreen is the case that makes the 2008 coastline load-bearing
     # here: its surge put ice far down the fjord, so a large area is "ever
-    # land" and now ungated. See AGENTS.md "NGS pre-2012 surge blind spot".
+    # land" and now ungated. 
     #
     # The land/glacier solve gets no restriction at all -- a nunatak's
     # positive bed under ice is ordinary. The two solves stay separate (not

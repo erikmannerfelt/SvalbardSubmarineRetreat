@@ -15,9 +15,6 @@ tidewater glaciers (RGI7 tidewater plus Scheelebreen):
    sampled depths and volumes are in the table, so no reader needs the bed
    rasters to get a volume.
 
-`AGENTS.md` records the durable domain rules behind the non-obvious choices,
-in particular the Nathorstbreen Glacier System (NGS) surge fixes.
-
 ## Pipeline
 
 1. **Corrected outlines** (`src/outlines.py`) -- RGI7 region 7, Jan Mayen
@@ -82,7 +79,7 @@ coming from the harmonic fill rather than a measurement) and
 `<model>_valid_cells`. Ensemble columns `ensemble_mean_volume_change_m3`,
 `ensemble_median_volume_change_m3`, `ensemble_std_volume_change_m3` and
 `ensemble_model_count` summarize the four `bed.ENSEMBLE_MODELS`
-(`svift_v10` and `millan` are sampled but excluded; see `AGENTS.md`). `n_cells` is
+(`svift_v10` and `millan` are sampled but excluded). `n_cells` is
 how many 100 m cells the polygon overlaps and `<model>_valid_cells` how many
 of those have a value for that model; a polygon with none gets NaN in that
 model's depth/volume columns, but a partly covered polygon still gets a volume
@@ -97,7 +94,7 @@ distance in m to the nearest directly measured cell; (3) a provenance code
 IBCAO soundings within 1 km of the change polygons (median/mean bias, RMSE,
 and the depth ratio by which it would scale a submarine volume), on each
 model's own cells and on shared-cell subsets. This is the evidence for
-excluding `millan` from the ensemble (`src/validation.py`, `AGENTS.md`).
+excluding `millan` from the ensemble (`src/validation.py`).
 
 `products/bed/bed_spread_100m.tif` -- per-pixel ensemble spread over
 `bed.ENSEMBLE_MODELS` (four estimates; `svift_v10` and `millan` are
@@ -113,8 +110,7 @@ ever open water in 2008 or 2012/2018/2023, not just the three study years: the
 Nathorstbreen Glacier System surged over open water around 2008, and that
 still-ice-covered area would otherwise be treated as ordinary land. Frank's
 model also still sees the post-surge fjord as ice-free land, so
-`shapes/ngs_frank_override.geojson` discards Frank there by hand. See
-`AGENTS.md`.
+`shapes/ngs_frank_override.geojson` discards Frank there by hand.
 
 **Interpolation share.** Much of the bed value at the calving fronts comes
 from this repo's harmonic fill rather than any source model, most for the
@@ -146,8 +142,6 @@ Every dataset has a `get_<source>()` in `src/sources.py` that downloads to
 ## Related repos
 
 - Union masks with glacier attribution from RGI7/coastlines/outline
-  corrections: `https://github.com/erikmannerfelt/ad_svalbard_post`
-- Related glacier volume processing:
-  `https://github.com/joh-brunner/glacier_area_volume`
+  corrections: (erikmannerfelt/ad_svalbard_post)[https://github.com/erikmannerfelt/ad_svalbard_post]
 - Downloaders for Millan, van Pelt and others:
-  `https://github.com/erikmannerfelt/svalbard_radar`
+  (erikmannerfelt/svalbard_radar)[https://github.com/erikmannerfelt/svalbard_radar]

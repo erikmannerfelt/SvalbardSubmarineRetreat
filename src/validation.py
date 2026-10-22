@@ -122,7 +122,7 @@ def make_bed_model_validation(
     raw: dict[str, np.ndarray] = {}
     for model, loader in RAW_BED_LOADERS.items():
         model_bed = loader(window, transform, shape).astype(np.float32)
-        # The same NGS hand override the merged Frank bed gets (see AGENTS.md).
+        # The same NGS hand override the merged Frank bed gets.
         if model == "frank":
             model_bed[bed.frank_override_zone(transform, shape)] = np.nan
         raw[model] = model_bed

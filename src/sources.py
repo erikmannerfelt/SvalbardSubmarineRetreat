@@ -29,7 +29,7 @@ RGI7_URL: Final = (
 #: shapefile already in EPSG:32633. The dataset's `attachment/` listing
 #: actually goes back to 1936 (1936/1960/1976/1985/1990, then annual from
 #: 2012); only 2008 is used here so far, as a pre-surge baseline for
-#: `bed.marine_domain` (see AGENTS.md) --
+#: `bed.marine_domain` --
 #: the older decadal years are left out until independently vetted (different
 #: digitization era/method), per the user's explicit caution (2026-09-02).
 COASTLINE_URLS: Final[dict[int, str]] = {
@@ -47,7 +47,7 @@ def download_file(url: str, out_path: Path, refresh_download: bool = False) -> P
     `out_path` on success, so an interrupted download never leaves a
     misleading complete-looking file. This is a *source* download, not a
     derived cache, so it takes a plain `refresh_download` flag rather than
-    the `ForceRedo` propagation used by derived caches (see AGENTS.md /
+    the `ForceRedo` propagation used by derived caches (see 
     the Python-project caching conventions).
 
     Parameters
@@ -118,7 +118,7 @@ def _normalize_svift_bed_netcdf(netcdf_path: Path, tif_path: Path) -> Path:
     the rows in file (south-up) order, so reading either file directly with
     rasterio yields a vertically mirrored bed -- verified for v1.1 by
     rasterizing the RGI7 outlines against SVIFT's valid-data mask: 6.3%
-    overlap as read by rasterio, 99.5% once flipped (see AGENTS.md).
+    overlap as read by rasterio, 99.5% once flipped.
     We therefore normalize once here, on extraction, into a plain GeoTIFF
     that every consumer can open without repeating the flip.
     """
@@ -584,7 +584,7 @@ def get_vanpelt_frank_bed(refresh_download: bool = False) -> Path:
     -------
     Path
         `input/vanpelt/Bed_map.tif`, EPSG:25833, 100 m, bed elevation in m
-        a.s.l. Reprojected onto the low-resolution (500 m, per AGENTS.md)
+        a.s.l. Reprojected onto the low-resolution (500 m)
         target grid in `bed.py`, not here.
     """
     out_path = config.VANPELT_DIR / "Bed_map.tif"
